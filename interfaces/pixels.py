@@ -51,7 +51,7 @@ class Pixels:
             self._render()
 
     def _render(self) -> None:
-        self.dev.set_pixel(self.APP_LED, 0, 255 if self._app_on else 0, 0)
+        self.dev.set_pixel(self.APP_LED, 0, 64 if self._app_on else 0, 0)
         self.dev.set_pixel(self.RECORD_LED, 255 if self._record_on else 0, 0, 0)
         self.dev.set_pixel(self.PLAY_LED, 0, 0, 255 if self._play_on else 0)
         self.dev.show()

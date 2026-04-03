@@ -12,7 +12,7 @@ from telegram_handler import TelegramClient
 
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 LOGGER = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class WalkieTalkieApp:
         self._telegram = TelegramClient(
             token=config.telegram_token,
             chat_id=config.telegram_chat_id,
-            peer_bot_username=config.peer_bot_username,
+            own_username=config.own_bot_username,
             destination_file=config.play_file_path,
         )
 
@@ -69,7 +69,6 @@ class WalkieTalkieApp:
         LOGGER.info("Send voice path: %s", self._config.send_file_path)
         LOGGER.info("Play voice path: %s", self._config.play_file_path)
         LOGGER.info("Telegram chat id: %s", self._config.telegram_chat_id)
-        LOGGER.info("Peer bot username: %s", self._config.peer_bot_username)
 
     def _emit_event(self, event: AppEvent) -> None:
         self._loop.call_soon_threadsafe(self._events.put_nowait, event)
@@ -98,14 +97,32 @@ class WalkieTalkieApp:
     async def _handle_record_toggle(self) -> None:
         if self._audio.is_recording:
             LOGGER.info("Stopping recording")
-            self._audio.stop_recording()
+            stopped = self._audio.stop_recording()
+            if not stopped:
+                LOGGER.warning("Recording process exited with non-zero status")
             self._pixels.set_recording(False)
+            beeped = self._audio.play_recording_end_beep()
+            if not beeped:
+                LOGGER.warning("Could not play recording end beep")
             try:
                 await self._telegram.send_voice(self._config.send_file_path)
                 LOGGER.info("Uploaded %s", self._config.send_file_path)
             except Exception:
                 LOGGER.exception("Failed to upload recorded voice")
             return
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: self._audio.play_recording_end_beep(
+                high_frequency_hz=2525,
+                low_frequency_hz=2475,
+                high_duration_s=0.20,
+                low_duration_s=0.20,
+                gap_s=0.04,
+                volume=1.0,
+            ),
+        )
 
         started = self._audio.start_recording(self._config.send_file_path)
         if not started:
@@ -130,9 +147,20 @@ class WalkieTalkieApp:
 
     async def _telegram_poll_loop(self) -> None:
         while True:
-            downloaded = await self._telegram.safe_poll_and_download_peer_voice(timeout_s=30)
+            downloaded = await self._telegram.poll_with_retry(
+                timeout_s=30,
+                max_attempts=3,
+                initial_backoff_s=1.0,
+            )
             if downloaded:
-                LOGGER.info("Peer voice downloaded and ready for replay")
+                LOGGER.info("Peer voice downloaded, starting auto-playback")
+                started = self._audio.start_playback(self._config.play_file_path)
+                if started:
+                    self._pixels.set_playing(True)
+                else:
+                    LOGGER.warning("Auto-playback skipped (busy or file missing)")
+            else:
+                LOGGER.debug("No peer voice message downloaded in this poll cycle")
             await asyncio.sleep(self._config.poll_interval_s)
 
     async def _playback_watchdog_loop(self) -> None:
@@ -144,6 +172,8 @@ class WalkieTalkieApp:
                 self._pixels.set_recording(False)
             if self._last_playing_state and not playing:
                 self._pixels.set_playing(False)
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, self._audio.play_recording_end_beep)
 
             self._last_recording_state = recording
             self._last_playing_state = playing

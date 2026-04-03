@@ -1,0 +1,29 @@
+[Unit]
+Description=Telegram Walkie-Talkie
+After=network-online.target sound.target
+Wants=network-online.target sound.target
+
+[Service]
+Type=simple
+User=pison
+
+# Absolute path to the project directory on the Pi
+WorkingDirectory=/home/pison/tg-w-t-Mar29-2026
+
+# Use the virtual-env Python created by uv (avoids needing uv in systemd PATH)
+ExecStart=/home/pison/tg-w-t-Mar29-2026/.venv/bin/python main.py
+
+# Secrets / config loaded from secure env file
+EnvironmentFile=/etc/walkie-talkie/walkie-talkie.env
+
+# Restart automatically if it crashes
+Restart=on-failure
+RestartSec=10
+
+# Log to systemd journal (query with: journalctl -u walkie-talkie -f)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=walkie-talkie
+
+[Install]
+WantedBy=multi-user.target

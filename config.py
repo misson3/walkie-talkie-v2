@@ -9,7 +9,7 @@ from pathlib import Path
 class AppConfig:
     telegram_token: str
     telegram_chat_id: int
-    peer_bot_username: str
+    own_bot_username: str
     audio_device: str
     gpio_record_pin: int
     gpio_replay_pin: int
@@ -46,7 +46,7 @@ def load_config(project_root: Path | None = None) -> AppConfig:
 
     token = _require_env("TELEGRAM_BOT_TOKEN")
     chat_id = int(_require_env("TELEGRAM_CHAT_ID"))
-    peer_bot = os.getenv("TELEGRAM_PEER_BOT_USERNAME", "koe2_bot")
+    own_bot = os.getenv("TELEGRAM_OWN_BOT_USERNAME", "")
 
     audio_device = os.getenv("AUDIO_DEVICE", "hw:1,0")
     record_pin = int(os.getenv("GPIO_RECORD_PIN", "12"))
@@ -62,7 +62,7 @@ def load_config(project_root: Path | None = None) -> AppConfig:
     return AppConfig(
         telegram_token=token,
         telegram_chat_id=chat_id,
-        peer_bot_username=peer_bot,
+        own_bot_username=own_bot,
         audio_device=audio_device,
         gpio_record_pin=record_pin,
         gpio_replay_pin=replay_pin,
