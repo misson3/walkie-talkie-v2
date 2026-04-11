@@ -8,7 +8,7 @@ Python service that turns two Raspberry Pi devices into a Telegram-based walkie-
 - Recording automatically stops after 30 seconds (configurable).
 - A NASA Quindar-style two-tone chirp plays when recording stops.
 	- If max duration is reached automatically: a distinctive triple-beep alert sounds instead.
-- Button B (GPIO 17): replay the latest received voice file.
+- Button B (GPIO 13): replay the latest received voice file.
 - Incoming peer-bot voice message is downloaded to a single fixed file.
 - Local outgoing recording is saved to a single fixed file.
 - Replay is ignored while recording is in progress.
@@ -28,16 +28,8 @@ Required:
 Optional:
 
 - `TELEGRAM_OWN_BOT_USERNAME` (default: empty — recommended to set to e.g. `koe1_bot` to prevent echo)
-- `AUDIO_DEVICE` (default: `hw:1,0`)
-- `GPIO_RECORD_PIN` (default: `12`)
-- `GPIO_REPLAY_PIN` (default: `17`)
 - `GPIO_RECORD_ACTIVE_LOW` (default: `true`)
 - `GPIO_REPLAY_ACTIVE_LOW` (default: `true`)
-- `GPIO_DEBOUNCE_MS` (default: `120`)
-- `TELEGRAM_POLL_INTERVAL_S` (default: `1.5`)
-- `MAX_RECORDING_DURATION_S` (default: `30.0` seconds)
-- `SEND_FILE_NAME` (default: `to-go-voice.ogg`)
-- `PLAY_FILE_NAME` (default: `to-play-voice.ogg`)
 
 ## System Dependencies (Raspberry Pi)
 
@@ -174,6 +166,6 @@ Expected result:
 
 - Recording and playback use `ffmpeg` subprocess commands.
 - LED patterns use `interfaces/pixels.py` and `interfaces/apa102.py`.
-- Button A (GPIO12) and Button B (GPIO17) default to pull-up wiring (active-low).
+- Button A (GPIO12) and Button B (GPIO13) default to pull-up wiring (active-low).
 - For active-high wiring, set `GPIO_RECORD_ACTIVE_LOW=false` and/or `GPIO_REPLAY_ACTIVE_LOW=false`.
 - Telegram polling uses retry with exponential backoff on transient API errors.
