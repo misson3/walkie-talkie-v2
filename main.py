@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from enum import Enum
 
 from audio_manager import AudioManager
@@ -50,6 +51,7 @@ class WalkieTalkieApp:
 
         self._last_recording_state = False
         self._last_playing_state = False
+        self._recording_start_time: float | None = None
 
     def _log_startup_self_check(self) -> None:
         LOGGER.info("Startup self-check")
@@ -131,6 +133,7 @@ class WalkieTalkieApp:
 
         LOGGER.info("Recording started")
         self._pixels.set_recording(True)
+        self._recording_start_time = time.time()
 
     def _handle_replay_button(self) -> None:
         if self._audio.is_recording:
@@ -170,6 +173,26 @@ class WalkieTalkieApp:
 
             if self._last_recording_state and not recording:
                 self._pixels.set_recording(False)
+                self._recording_start_time = None
+            
+            if recording and self._recording_start_time is not None:
+                elapsed = time.time() - self._recording_start_time
+                if elapsed >= self._config.max_recording_duration_s:
+                    LOGGER.info(
+                        "Max recording duration (%s s) reached, auto-stopping",
+                        self._config.max_recording_duration_s,
+                    )
+                    self._audio.stop_recording()
+                    self._pixels.set_recording(False)
+                    self._recording_start_time = None
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(None, self._audio.play_max_duration_alert_beep)
+                    try:
+                        await self._telegram.send_voice(self._config.send_file_path)
+                        LOGGER.info("Uploaded %s", self._config.send_file_path)
+                    except Exception:
+                        LOGGER.exception("Failed to upload recorded voice")
+
             if self._last_playing_state and not playing:
                 self._pixels.set_playing(False)
                 loop = asyncio.get_running_loop()

@@ -7,4 +7,10 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
+
+
+# anything downloaded
+# e.g. zip file from https://github.com/HinTak/seeed-voicecard/tree/v6.12
+ext-files/
+

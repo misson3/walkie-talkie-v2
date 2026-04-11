@@ -5,7 +5,9 @@ Python service that turns two Raspberry Pi devices into a Telegram-based walkie-
 ## Behavior
 
 - Button A (GPIO 12): press once to start recording, press again to stop and send.
+- Recording automatically stops after 30 seconds (configurable).
 - A NASA Quindar-style two-tone chirp plays when recording stops.
+	- If max duration is reached automatically: a distinctive triple-beep alert sounds instead.
 - Button B (GPIO 17): replay the latest received voice file.
 - Incoming peer-bot voice message is downloaded to a single fixed file.
 - Local outgoing recording is saved to a single fixed file.
@@ -33,6 +35,7 @@ Optional:
 - `GPIO_REPLAY_ACTIVE_LOW` (default: `true`)
 - `GPIO_DEBOUNCE_MS` (default: `120`)
 - `TELEGRAM_POLL_INTERVAL_S` (default: `1.5`)
+- `MAX_RECORDING_DURATION_S` (default: `30.0` seconds)
 - `SEND_FILE_NAME` (default: `to-go-voice.ogg`)
 - `PLAY_FILE_NAME` (default: `to-play-voice.ogg`)
 

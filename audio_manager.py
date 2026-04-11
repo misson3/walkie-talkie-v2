@@ -103,6 +103,31 @@ class AudioManager:
             LOGGER.exception("Recording end beep process failed")
             return False
 
+    def play_max_duration_alert_beep(self) -> bool:
+        """Play a distinctive triple-beep alert when max recording duration is reached."""
+        with self._lock:
+            self._clear_finished_processes_locked()
+            if self.is_playing:
+                return False
+
+        try:
+            beep_frequency = 1950
+            beep_duration = 0.15
+            gap_duration = 0.08
+            volume = 1.0
+
+            for i in range(3):
+                ok = self._play_tone(beep_frequency, beep_duration, volume)
+                if not ok:
+                    return False
+                if i < 2:
+                    time.sleep(gap_duration)
+
+            return True
+        except (OSError, subprocess.SubprocessError):
+            LOGGER.exception("Failed to play max duration alert beep")
+            return False
+
     def _play_tone(self, frequency_hz: int, duration_s: float, volume: float) -> bool:
         command = [
             "ffmpeg",

@@ -17,6 +17,7 @@ class AppConfig:
     gpio_replay_active_low: bool
     debounce_ms: int
     poll_interval_s: float
+    max_recording_duration_s: float
     send_file_path: Path
     play_file_path: Path
 
@@ -50,11 +51,13 @@ def load_config(project_root: Path | None = None) -> AppConfig:
 
     audio_device = os.getenv("AUDIO_DEVICE", "hw:1,0")
     record_pin = int(os.getenv("GPIO_RECORD_PIN", "12"))
-    replay_pin = int(os.getenv("GPIO_REPLAY_PIN", "17"))
+    #replay_pin = int(os.getenv("GPIO_REPLAY_PIN", "17"))
+    replay_pin = int(os.getenv("GPIO_REPLAY_PIN", "13"))
     record_active_low = _env_bool("GPIO_RECORD_ACTIVE_LOW", True)
     replay_active_low = _env_bool("GPIO_REPLAY_ACTIVE_LOW", True)
     debounce_ms = int(os.getenv("GPIO_DEBOUNCE_MS", "120"))
     poll_interval_s = float(os.getenv("TELEGRAM_POLL_INTERVAL_S", "1.5"))
+    max_recording_duration_s = float(os.getenv("MAX_RECORDING_DURATION_S", "30.0"))
 
     send_file = root / os.getenv("SEND_FILE_NAME", "to-go-voice.ogg")
     play_file = root / os.getenv("PLAY_FILE_NAME", "to-play-voice.ogg")
@@ -70,6 +73,7 @@ def load_config(project_root: Path | None = None) -> AppConfig:
         gpio_replay_active_low=replay_active_low,
         debounce_ms=debounce_ms,
         poll_interval_s=poll_interval_s,
+        max_recording_duration_s=max_recording_duration_s,
         send_file_path=send_file,
         play_file_path=play_file,
     )
