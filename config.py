@@ -20,6 +20,11 @@ class AppConfig:
     max_recording_duration_s: float
     send_file_path: Path
     play_file_path: Path
+    notification_sound_path: Path
+    recording_start_sound_path: Path
+    recording_stop_sound_path: Path
+    playback_end_sound_path: Path
+    max_duration_alert_sound_path: Path
 
 
 def _require_env(name: str) -> str:
@@ -49,18 +54,22 @@ def load_config(project_root: Path | None = None) -> AppConfig:
     chat_id = int(_require_env("TELEGRAM_CHAT_ID"))
     own_bot = os.getenv("TELEGRAM_OWN_BOT_USERNAME", "")
 
-    audio_device = os.getenv("AUDIO_DEVICE", "hw:1,0")
-    record_pin = int(os.getenv("GPIO_RECORD_PIN", "12"))
-    #replay_pin = int(os.getenv("GPIO_REPLAY_PIN", "17"))
-    replay_pin = int(os.getenv("GPIO_REPLAY_PIN", "13"))
+    audio_device = "hw:1,0"
+    record_pin = 12
+    replay_pin = 13
     record_active_low = _env_bool("GPIO_RECORD_ACTIVE_LOW", True)
     replay_active_low = _env_bool("GPIO_REPLAY_ACTIVE_LOW", True)
-    debounce_ms = int(os.getenv("GPIO_DEBOUNCE_MS", "120"))
-    poll_interval_s = float(os.getenv("TELEGRAM_POLL_INTERVAL_S", "1.5"))
-    max_recording_duration_s = float(os.getenv("MAX_RECORDING_DURATION_S", "30.0"))
+    debounce_ms = 120
+    poll_interval_s = 1.5
+    max_recording_duration_s = 30.0
 
-    send_file = root / os.getenv("SEND_FILE_NAME", "to-go-voice.ogg")
-    play_file = root / os.getenv("PLAY_FILE_NAME", "to-play-voice.ogg")
+    send_file = root / "to-go-voice.ogg"
+    play_file = root / "to-play-voice.ogg"
+    notification_sound = root / "doorbell_short_decay.ogg"
+    recording_start_sound = root / "rec_start_A.ogg"
+    recording_stop_sound = root / "rec_stop_A.ogg"
+    playback_end_sound = root / "rec_stop_C.ogg"
+    max_duration_alert_sound = root / "max_dur_B.ogg"
 
     return AppConfig(
         telegram_token=token,
@@ -76,4 +85,9 @@ def load_config(project_root: Path | None = None) -> AppConfig:
         max_recording_duration_s=max_recording_duration_s,
         send_file_path=send_file,
         play_file_path=play_file,
+        notification_sound_path=notification_sound,
+        recording_start_sound_path=recording_start_sound,
+        recording_stop_sound_path=recording_stop_sound,
+        playback_end_sound_path=playback_end_sound,
+        max_duration_alert_sound_path=max_duration_alert_sound,
     )

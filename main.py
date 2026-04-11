@@ -103,9 +103,9 @@ class WalkieTalkieApp:
             if not stopped:
                 LOGGER.warning("Recording process exited with non-zero status")
             self._pixels.set_recording(False)
-            beeped = self._audio.play_recording_end_beep()
+            beeped = self._audio.play_notification_file(self._config.recording_stop_sound_path)
             if not beeped:
-                LOGGER.warning("Could not play recording end beep")
+                LOGGER.warning("Could not play recording stop sound")
             try:
                 await self._telegram.send_voice(self._config.send_file_path)
                 LOGGER.info("Uploaded %s", self._config.send_file_path)
@@ -116,14 +116,7 @@ class WalkieTalkieApp:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
-            lambda: self._audio.play_recording_end_beep(
-                high_frequency_hz=2525,
-                low_frequency_hz=2475,
-                high_duration_s=0.20,
-                low_duration_s=0.20,
-                gap_s=0.04,
-                volume=1.0,
-            ),
+            lambda: self._audio.play_notification_file(self._config.recording_start_sound_path),
         )
 
         started = self._audio.start_recording(self._config.send_file_path)
@@ -156,7 +149,14 @@ class WalkieTalkieApp:
                 initial_backoff_s=1.0,
             )
             if downloaded:
-                LOGGER.info("Peer voice downloaded, starting auto-playback")
+                LOGGER.info("Peer voice downloaded, playing doorbell then starting auto-playback")
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(
+                    None,
+                    lambda: self._audio.play_notification_file(
+                        self._config.notification_sound_path
+                    ),
+                )
                 started = self._audio.start_playback(self._config.play_file_path)
                 if started:
                     self._pixels.set_playing(True)
@@ -186,7 +186,7 @@ class WalkieTalkieApp:
                     self._pixels.set_recording(False)
                     self._recording_start_time = None
                     loop = asyncio.get_running_loop()
-                    await loop.run_in_executor(None, self._audio.play_max_duration_alert_beep)
+                    await loop.run_in_executor(None, lambda: self._audio.play_notification_file(self._config.max_duration_alert_sound_path))
                     try:
                         await self._telegram.send_voice(self._config.send_file_path)
                         LOGGER.info("Uploaded %s", self._config.send_file_path)
@@ -196,7 +196,7 @@ class WalkieTalkieApp:
             if self._last_playing_state and not playing:
                 self._pixels.set_playing(False)
                 loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, self._audio.play_recording_end_beep)
+                await loop.run_in_executor(None, lambda: self._audio.play_notification_file(self._config.playback_end_sound_path))
 
             self._last_recording_state = recording
             self._last_playing_state = playing

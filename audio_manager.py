@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import subprocess
 import threading
-import time
 from pathlib import Path
 
 
@@ -69,86 +68,30 @@ class AudioManager:
 
         return process.returncode == 0
 
-    def play_recording_end_beep(
-        self,
-        high_frequency_hz: int = 2525,
-        low_frequency_hz: int = 2475,
-        high_duration_s: float = 0.25,
-        low_duration_s: float = 0.25,
-        gap_s: float = 0.05,
-        volume: float = 1.0,
-        allow_while_recording: bool = False,
-    ) -> bool:
-        with self._lock:
-            self._clear_finished_processes_locked()
-            if self.is_playing:
-                return False
-            if self.is_recording and not allow_while_recording:
-                return False
-
-        try:
-            first_ok = self._play_tone(high_frequency_hz, high_duration_s, volume)
-            if not first_ok:
-                return False
-
-            if gap_s > 0:
-                time.sleep(gap_s)
-
-            second_ok = self._play_tone(low_frequency_hz, low_duration_s, volume)
-            return second_ok
-        except OSError:
-            LOGGER.exception("Failed to play recording end beep")
+    def play_notification_file(self, file_path: Path) -> bool:
+        """Play a sound file synchronously as a notification before auto-playback."""
+        if not file_path.exists():
+            LOGGER.warning("Notification sound file not found: %s", file_path)
             return False
-        except subprocess.SubprocessError:
-            LOGGER.exception("Recording end beep process failed")
-            return False
-
-    def play_max_duration_alert_beep(self) -> bool:
-        """Play a distinctive triple-beep alert when max recording duration is reached."""
-        with self._lock:
-            self._clear_finished_processes_locked()
-            if self.is_playing:
-                return False
-
-        try:
-            beep_frequency = 1950
-            beep_duration = 0.15
-            gap_duration = 0.08
-            volume = 1.0
-
-            for i in range(3):
-                ok = self._play_tone(beep_frequency, beep_duration, volume)
-                if not ok:
-                    return False
-                if i < 2:
-                    time.sleep(gap_duration)
-
-            return True
-        except (OSError, subprocess.SubprocessError):
-            LOGGER.exception("Failed to play max duration alert beep")
-            return False
-
-    def _play_tone(self, frequency_hz: int, duration_s: float, volume: float) -> bool:
         command = [
             "ffmpeg",
             "-nostdin",
             "-loglevel",
             "error",
-            "-f",
-            "lavfi",
             "-i",
-            f"sine=frequency={frequency_hz}:duration={duration_s}",
-            "-af",
-            f"volume={volume}",
+            str(file_path),
             "-ac",
             "2",
             "-f",
             "alsa",
             self.audio_device,
         ]
-        timeout_s = max(1.0, duration_s + 1.0)
-        result = subprocess.run(command, timeout=timeout_s)
-        return result.returncode == 0
+        try:
+            result = subprocess.run(command, timeout=10.0)
+            return result.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            LOGGER.exception("Failed to play notification sound")
+            return False
 
     def start_playback(self, input_file: Path) -> bool:
         with self._lock:
