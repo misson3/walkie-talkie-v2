@@ -38,11 +38,22 @@ Use one of these methods:
 sudo apt update
 sudo apt install -y ffmpeg python3-rpi.gpio python3-dev git curl
 curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
+
+🐔# the script add the path setting in ~/.profile
+🐔# just reboot to take the setting in effect
+#export PATH="$HOME/.local/bin:$PATH"
+
+🐔# after the reboot, check
+which uv
 uv --version
+# uv 0.11.6 (armv7-unknown-linux-gnueabihf) # on my z2w3
 ```
 
-If your HAT driver steps are needed, complete those first and verify ALSA device exists.
+If your HAT driver steps are needed, complete those first and verify ALSA device exists. 
+
+👉see my installation-memo.md for the Respeaker Mic-2 installation.
+
+
 
 ## 5. Copy project and build the venv with uv
 
@@ -56,6 +67,11 @@ Copy the full project so metadata files are included:
 cd /home/pison
 git clone <YOUR_REPO_URL> tg-w-t-Mar29-2026
 cd tg-w-t-Mar29-2026
+
+🐔# on z2w3,
+mkdir tg-w-t-Apr12-2026
+cd tg-w-t-Apr12-2026
+# then copy the above 3 files into this dir (I used Win SCP)
 
 # Install/select Python from project metadata, then create .venv and install deps
 uv python install

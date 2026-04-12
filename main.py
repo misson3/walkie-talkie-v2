@@ -77,6 +77,7 @@ class WalkieTalkieApp:
 
     async def run(self) -> None:
         self._log_startup_self_check()
+        await self._telegram.log_startup_diagnostics()
         self._button_manager.start()
         self._pixels.set_app_running(True)
 

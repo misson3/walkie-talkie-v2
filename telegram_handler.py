@@ -25,6 +25,63 @@ class TelegramClient:
         self._destination_file = destination_file
         self._offset: int | None = None
 
+    async def log_startup_diagnostics(self) -> None:
+        """Log Telegram-side sanity checks at startup without failing the app."""
+        try:
+            me = await self._bot.get_me()
+            bot_username = (me.username or "").lower()
+            LOGGER.info(
+                "Telegram bot identity: id=%s username=@%s own_username_env=@%s",
+                me.id,
+                bot_username,
+                self._own_username,
+            )
+
+            if self._own_username and bot_username and self._own_username != bot_username:
+                LOGGER.warning(
+                    "Configured TELEGRAM_OWN_BOT_USERNAME (@%s) does not match token bot (@%s)",
+                    self._own_username,
+                    bot_username,
+                )
+
+            webhook_info = await self._bot.get_webhook_info()
+            if webhook_info.url:
+                LOGGER.warning(
+                    "Webhook is set to %s; long polling via getUpdates may return no updates",
+                    webhook_info.url,
+                )
+            else:
+                LOGGER.info("Webhook is not set (long polling mode)")
+
+            try:
+                chat = await self._bot.get_chat(self._chat_id)
+                LOGGER.info(
+                    "Configured chat is visible: id=%s type=%s title=%s",
+                    chat.id,
+                    chat.type,
+                    getattr(chat, "title", ""),
+                )
+            except TelegramError:
+                LOGGER.exception(
+                    "Configured TELEGRAM_CHAT_ID (%s) is not accessible by this bot",
+                    self._chat_id,
+                )
+
+            try:
+                member = await self._bot.get_chat_member(self._chat_id, me.id)
+                LOGGER.info("Bot membership in configured chat: status=%s", member.status)
+                if str(member.status).lower() == "restricted":
+                    LOGGER.warning(
+                        "Bot is restricted in this chat. Receiving updates may be limited by chat permissions."
+                    )
+            except TelegramError:
+                LOGGER.exception(
+                    "Failed to get bot membership for chat_id=%s",
+                    self._chat_id,
+                )
+        except TelegramError:
+            LOGGER.exception("Telegram startup diagnostics failed")
+
     async def send_voice(self, voice_file: Path) -> None:
         with voice_file.open("rb") as voice_stream:
             await self._bot.send_voice(

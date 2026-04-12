@@ -379,37 +379,3 @@ sudo apt install ffmpeg
 
 
 
-
-
-
-https://github.com/respeaker/mic_hat/tree/master
-
-のcodeを少し試す。pyaudio入れからてこずる。
-
-```bash
-mkdir python-test
-cd python-test
-python -m venv env
-source ./env/bin/activate
-
-で、requirementsにあるspidevをいれようとしてひっかかる。Python.hがないといっている。
-なにかがたりていない。
-google how to build pyaudio on raspberry pi
-
-sudo apt install build-essential  # already installed
-sudo apt install python3-dev
-
-でようやく。
-pip install spidevとおった。
-つづける
-pip install rpi.gpio
-pip install pyaudio
-pip install numpy
-
-record.pyはうごいた。
-arecordはCard3というのだが、
-REAPEAKER_INDEX = 1
-で動く。一つ目だからか。
-まあいいや。
-```
-

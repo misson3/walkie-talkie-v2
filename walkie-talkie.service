@@ -8,10 +8,12 @@ Type=simple
 User=pison
 
 # Absolute path to the project directory on the Pi
-WorkingDirectory=/home/pison/tg-w-t-Mar29-2026
+#WorkingDirectory=/home/pison/tg-w-t-Mar29-2026  # z2w2 koeichi
+WorkingDirectory=/home/pison/tg-w-t-Apr12-2026  # z2w3 with koeji
 
 # Use the virtual-env Python created by uv (avoids needing uv in systemd PATH)
-ExecStart=/home/pison/tg-w-t-Mar29-2026/.venv/bin/python main.py
+#ExecStart=/home/pison/tg-w-t-Mar29-2026/.venv/bin/python main.py  # z2w2 koeichi
+ExecStart=/home/pison/tg-w-t-Apr12-2026/.venv/bin/python main.py  # z2w3 koeji
 
 # Secrets / config loaded from secure env file
 EnvironmentFile=/etc/walkie-talkie/walkie-talkie.env
