@@ -111,6 +111,11 @@ Set values:
 - `MQTT_USERNAME` = optional username when Mosquitto auth is enabled
 - `MQTT_PASSWORD` = optional password when Mosquitto auth is enabled
 
+Recommended validated split:
+
+- Pi A: `MQTT_BROKER_HOST=127.0.0.1`
+- Pi B: `MQTT_BROKER_HOST=<PI_A_TAILSCALE_IP>`
+
 Then lock permissions:
 
 ```bash
@@ -226,12 +231,23 @@ mosquitto_sub -h <PI_A_TAILSCALE_IP> -t walkie/v2/audio/# -v
 mosquitto_pub -h <PI_A_TAILSCALE_IP> -t walkie/v2/audio/pi_b -m hello-from-pi-b
 ```
 
-After initial bring-up, better target config is to bind the listener to Pi A's Tailscale IP instead of all interfaces:
+After initial bring-up, a validated target config is to listen on both localhost and Pi A's Tailscale IP. This lets Pi A use `127.0.0.1` while Pi B connects over Tailscale:
 
 ```conf
 per_listener_settings true
+listener 1883 127.0.0.1
+allow_anonymous true
+
 listener 1883 <PI_A_TAILSCALE_IP>
 allow_anonymous true
+```
+
+Verify both listeners are present:
+
+```bash
+sudo ss -lntp | grep 1883
+mosquitto_sub -h 127.0.0.1 -t walkie/v2/audio/# -v
+mosquitto_sub -h <PI_A_TAILSCALE_IP> -t walkie/v2/audio/# -v
 ```
 
 Longer-term hardening after end-to-end validation:

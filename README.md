@@ -32,7 +32,7 @@ Optional:
 - `TELEGRAM_IGNORE_BOT_USERNAMES` (default: empty — recommended in V2, comma-separated usernames to ignore on Telegram playback)
 - `NODE_ID` (default: `unnamed-node`)
 - `MQTT_ENABLED` (default: `false`)
-- `MQTT_BROKER_HOST` (default: empty — on Pi A, prefer `127.0.0.1` if the broker runs on the same Pi; on Pi B, use Pi A's Tailscale IP)
+- `MQTT_BROKER_HOST` (default: empty — validated setup: on Pi A use `127.0.0.1`, on Pi B use Pi A's Tailscale IP, and configure Mosquitto on Pi A to listen on both)
 - `MQTT_BROKER_PORT` (default: `1883`)
 - `MQTT_TOPIC_PREFIX` (default: `walkie/v2`)
 - `MQTT_USERNAME` (default: empty)
