@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 
 from telegram import Bot
@@ -11,6 +12,30 @@ from telegram.error import TelegramError
 LOGGER = logging.getLogger(__name__)
 
 
+def normalize_telegram_username(username: str) -> str:
+    return username.strip().lstrip("@").lower()
+
+
+def build_ignore_bot_usernames(
+    own_username: str = "",
+    ignore_bot_usernames: Iterable[str] = (),
+) -> set[str]:
+    normalized_usernames = {
+        normalize_telegram_username(username)
+        for username in ignore_bot_usernames
+        if normalize_telegram_username(username)
+    }
+    normalized_own_username = normalize_telegram_username(own_username)
+    if normalized_own_username:
+        normalized_usernames.add(normalized_own_username)
+    return normalized_usernames
+
+
+def should_ignore_telegram_sender(sender_username: str, ignore_bot_usernames: set[str]) -> bool:
+    normalized_sender = normalize_telegram_username(sender_username)
+    return bool(normalized_sender) and normalized_sender in ignore_bot_usernames
+
+
 class TelegramClient:
     def __init__(
         self,
@@ -18,15 +43,19 @@ class TelegramClient:
         chat_id: int,
         destination_file: Path,
         own_username: str = "",
+        ignore_bot_usernames: Iterable[str] = (),
     ):
         self._bot = Bot(token=token)
         self._chat_id = chat_id
-        self._own_username = own_username.lstrip("@").lower()
+        self._own_username = normalize_telegram_username(own_username)
+        self._ignore_bot_usernames = build_ignore_bot_usernames(
+            own_username=self._own_username,
+            ignore_bot_usernames=ignore_bot_usernames,
+        )
         self._destination_file = destination_file
         self._offset: int | None = None
 
     async def log_startup_diagnostics(self) -> None:
-        """Log Telegram-side sanity checks at startup without failing the app."""
         try:
             me = await self._bot.get_me()
             bot_username = (me.username or "").lower()
@@ -36,6 +65,7 @@ class TelegramClient:
                 bot_username,
                 self._own_username,
             )
+            LOGGER.info("Telegram ignored bot usernames: %s", sorted(self._ignore_bot_usernames))
 
             if self._own_username and bot_username and self._own_username != bot_username:
                 LOGGER.warning(
@@ -110,7 +140,7 @@ class TelegramClient:
                 LOGGER.debug("Update %s: no message, skipping", update.update_id)
                 continue
 
-            sender = (message.from_user.username or "").lower() if message.from_user else ""
+            sender = message.from_user.username or "" if message.from_user else ""
             LOGGER.debug(
                 "Update %s: chat_id=%s sender=@%s has_voice=%s",
                 update.update_id,
@@ -132,9 +162,8 @@ class TelegramClient:
                 )
                 continue
 
-            # Skip messages sent by this bot itself to avoid echo
-            if self._own_username and sender == self._own_username:
-                LOGGER.debug("Update %s: own message, skipping", update.update_id)
+            if should_ignore_telegram_sender(sender, self._ignore_bot_usernames):
+                LOGGER.debug("Update %s: ignored bot sender @%s, skipping", update.update_id, sender)
                 continue
 
             LOGGER.info(

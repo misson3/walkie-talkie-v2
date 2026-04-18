@@ -69,7 +69,6 @@ class AudioManager:
         return process.returncode == 0
 
     def play_notification_file(self, file_path: Path) -> bool:
-        """Play a sound file synchronously as a notification before auto-playback."""
         if not file_path.exists():
             LOGGER.warning("Notification sound file not found: %s", file_path)
             return False

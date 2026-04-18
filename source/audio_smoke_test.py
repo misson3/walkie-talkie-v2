@@ -4,11 +4,10 @@ import argparse
 import asyncio
 import logging
 import subprocess
-import time
 from pathlib import Path
 
-from audio_manager import AudioManager
-from config import load_config
+from .audio_manager import AudioManager
+from .config import load_config
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

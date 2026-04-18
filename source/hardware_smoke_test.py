@@ -6,8 +6,8 @@ import time
 
 import RPi.GPIO as GPIO
 
-from config import load_config
-from interfaces.pixels import Pixels
+from .config import load_config
+from .interfaces.pixels import Pixels
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

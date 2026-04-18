@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import threading
 
-try:
-    from interfaces import apa102
-except ImportError:
-    import apa102
+from . import apa102
 
 
 class Pixels:

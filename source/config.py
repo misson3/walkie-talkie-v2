@@ -7,9 +7,17 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class AppConfig:
+    node_id: str
     telegram_token: str
     telegram_chat_id: int
     own_bot_username: str
+    telegram_ignore_bot_usernames: tuple[str, ...]
+    mqtt_enabled: bool
+    mqtt_broker_host: str
+    mqtt_broker_port: int
+    mqtt_topic_prefix: str
+    mqtt_username: str
+    mqtt_password: str
     audio_device: str
     gpio_record_pin: int
     gpio_replay_pin: int
@@ -47,12 +55,41 @@ def _env_bool(name: str, default: bool) -> bool:
     raise RuntimeError(f"Invalid boolean value for {name}: {value}")
 
 
-def load_config(project_root: Path | None = None) -> AppConfig:
-    root = project_root or Path(__file__).resolve().parent
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid integer value for {name}: {value}") from exc
 
+
+def _env_csv(name: str) -> tuple[str, ...]:
+    value = os.getenv(name, "")
+    items = []
+    for item in value.split(","):
+        normalized = item.strip().lstrip("@").lower()
+        if normalized:
+            items.append(normalized)
+    return tuple(dict.fromkeys(items))
+
+
+def load_config(project_root: Path | None = None) -> AppConfig:
+    root = project_root or Path(__file__).resolve().parent.parent
+    ogg_root = root / "ogg"
+
+    node_id = os.getenv("NODE_ID", "unnamed-node").strip() or "unnamed-node"
     token = _require_env("TELEGRAM_BOT_TOKEN")
     chat_id = int(_require_env("TELEGRAM_CHAT_ID"))
-    own_bot = os.getenv("TELEGRAM_OWN_BOT_USERNAME", "")
+    own_bot = os.getenv("TELEGRAM_OWN_BOT_USERNAME", "").strip().lstrip("@").lower()
+    ignore_bot_usernames = _env_csv("TELEGRAM_IGNORE_BOT_USERNAMES")
+    mqtt_enabled = _env_bool("MQTT_ENABLED", False)
+    mqtt_broker_host = os.getenv("MQTT_BROKER_HOST", "").strip()
+    mqtt_broker_port = _env_int("MQTT_BROKER_PORT", 1883)
+    mqtt_topic_prefix = os.getenv("MQTT_TOPIC_PREFIX", "walkie/v2").strip().strip("/") or "walkie/v2"
+    mqtt_username = os.getenv("MQTT_USERNAME", "").strip()
+    mqtt_password = os.getenv("MQTT_PASSWORD", "")
 
     audio_device = "hw:1,0"
     record_pin = 12
@@ -63,18 +100,26 @@ def load_config(project_root: Path | None = None) -> AppConfig:
     poll_interval_s = 1.5
     max_recording_duration_s = 30.0
 
-    send_file = root / "to-go-voice.ogg"
-    play_file = root / "to-play-voice.ogg"
-    notification_sound = root / "doorbell_short_decay.ogg"
-    recording_start_sound = root / "rec_start_A.ogg"
-    recording_stop_sound = root / "rec_stop_A.ogg"
-    playback_end_sound = root / "rec_stop_C.ogg"
-    max_duration_alert_sound = root / "max_dur_B.ogg"
+    send_file = ogg_root / "to-go-voice.ogg"
+    play_file = ogg_root / "to-play-voice.ogg"
+    notification_sound = ogg_root / "doorbell_short_decay.ogg"
+    recording_start_sound = ogg_root / "rec_start_A.ogg"
+    recording_stop_sound = ogg_root / "rec_stop_A.ogg"
+    playback_end_sound = ogg_root / "rec_stop_C.ogg"
+    max_duration_alert_sound = ogg_root / "max_dur_B.ogg"
 
     return AppConfig(
+        node_id=node_id,
         telegram_token=token,
         telegram_chat_id=chat_id,
         own_bot_username=own_bot,
+        telegram_ignore_bot_usernames=ignore_bot_usernames,
+        mqtt_enabled=mqtt_enabled,
+        mqtt_broker_host=mqtt_broker_host,
+        mqtt_broker_port=mqtt_broker_port,
+        mqtt_topic_prefix=mqtt_topic_prefix,
+        mqtt_username=mqtt_username,
+        mqtt_password=mqtt_password,
         audio_device=audio_device,
         gpio_record_pin=record_pin,
         gpio_replay_pin=replay_pin,

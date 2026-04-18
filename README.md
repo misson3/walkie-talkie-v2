@@ -15,8 +15,9 @@ Python service that turns two Raspberry Pi devices into a Telegram-based walkie-
 
 ## Files
 
-- Outgoing voice file: `to-go-voice.ogg`
-- Incoming voice file: `to-play-voice.ogg`
+- Outgoing voice file: `ogg/to-go-voice.ogg`
+- Incoming voice file: `ogg/to-play-voice.ogg`
+- Python source package: `source/`
 
 ## Environment Variables
 
@@ -28,6 +29,14 @@ Required:
 Optional:
 
 - `TELEGRAM_OWN_BOT_USERNAME` (default: empty — recommended to set to e.g. `koe1_bot` to prevent echo)
+- `TELEGRAM_IGNORE_BOT_USERNAMES` (default: empty — recommended in V2, comma-separated usernames to ignore on Telegram playback)
+- `NODE_ID` (default: `unnamed-node`)
+- `MQTT_ENABLED` (default: `false`)
+- `MQTT_BROKER_HOST` (default: empty)
+- `MQTT_BROKER_PORT` (default: `1883`)
+- `MQTT_TOPIC_PREFIX` (default: `walkie/v2`)
+- `MQTT_USERNAME` (default: empty)
+- `MQTT_PASSWORD` (default: empty)
 - `GPIO_RECORD_ACTIVE_LOW` (default: `true`)
 - `GPIO_REPLAY_ACTIVE_LOW` (default: `true`)
 
@@ -55,7 +64,7 @@ pip install -e .
 ```bash
 export TELEGRAM_BOT_TOKEN="<your_token>"
 export TELEGRAM_CHAT_ID="<your_group_chat_id>"
-python main.py
+python -m source.main
 ```
 
 ## Run as systemd Service (auto-start on boot)
@@ -65,7 +74,7 @@ A ready-made unit file is included: `walkie-talkie.service`.
 ### 1. Confirm the venv exists on the Pi
 
 ```bash
-cd ~/z2w2-walkie-talkie-Mar28-2026
+cd ~/walkie-talkie-v2
 uv sync           # creates .venv if not already present
 ```
 
@@ -86,7 +95,7 @@ You can safely remove the `TELEGRAM_PEER_BOT_USERNAME` line — it is no longer 
 ### 3. Install the unit file
 
 ```bash
-sudo cp ~/z2w2-walkie-talkie-Mar28-2026/walkie-talkie.service /etc/systemd/system/
+sudo cp ~/walkie-talkie-v2/walkie-talkie.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
@@ -120,7 +129,7 @@ journalctl -u walkie-talkie -f
 ### After a code update on the Pi
 
 ```bash
-cd ~/z2w2-walkie-talkie-Mar28-2026
+cd ~/walkie-talkie-v2
 git pull
 uv sync
 sudo systemctl restart walkie-talkie
@@ -135,7 +144,7 @@ Use this before full app runs to verify button polarity and LED role mapping.
 ```bash
 export TELEGRAM_BOT_TOKEN="<your_token>"
 export TELEGRAM_CHAT_ID="<your_group_chat_id>"
-python hardware_smoke_test.py --seconds 20
+python -m source.hardware_smoke_test --seconds 20
 ```
 
 Expected result:
@@ -151,7 +160,7 @@ After hardware test passes, verify audio recording in OGG format.
 ```bash
 export TELEGRAM_BOT_TOKEN="<your_token>"
 export TELEGRAM_CHAT_ID="<your_group_chat_id>"
-python audio_smoke_test.py --seconds 5
+python -m source.audio_smoke_test --seconds 5
 ```
 
 Expected result:
@@ -162,10 +171,26 @@ Expected result:
 - `file` command shows OGG/Opus format.
 - Optionally playback: `aplay -D hw:1,0 /tmp/audio_smoke_test.ogg`
 
+## PC-Side V2 Verification
+
+Use this on the PC before deploying to Raspberry Pi. It checks V2 config parsing, Telegram bot-ignore rules, and MQTT topic acceptance rules without touching GPIO, LEDs, or audio hardware.
+
+```bash
+python -m source.v2_pc_verification
+```
+
+Expected result:
+
+- Config values are normalized as expected.
+- Human Telegram sender is accepted.
+- Bot Telegram senders in the ignore list are rejected.
+- MQTT peer topics are accepted.
+- MQTT own-node and malformed topics are rejected.
+
 ## Notes
 
 - Recording and playback use `ffmpeg` subprocess commands.
-- LED patterns use `interfaces/pixels.py` and `interfaces/apa102.py`.
+- LED patterns use `source/interfaces/pixels.py` and `source/interfaces/apa102.py`.
 - Button A (GPIO12) and Button B (GPIO13) default to pull-up wiring (active-low).
 - For active-high wiring, set `GPIO_RECORD_ACTIVE_LOW=false` and/or `GPIO_REPLAY_ACTIVE_LOW=false`.
 - Telegram polling uses retry with exponential backoff on transient API errors.
