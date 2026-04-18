@@ -105,7 +105,7 @@ Set values:
 - `TELEGRAM_IGNORE_BOT_USERNAMES` = both Pi bot usernames, comma-separated
 - `NODE_ID` = `pi_a` or `pi_b`
 - `MQTT_ENABLED` = `true` for V2
-- `MQTT_BROKER_HOST` = Pi A Tailscale IP when using Pi A as broker
+- `MQTT_BROKER_HOST` = on Pi A, prefer `127.0.0.1` when Mosquitto runs on the same Pi; on Pi B, use Pi A's Tailscale IP
 - `MQTT_BROKER_PORT` = `1883`
 - `MQTT_TOPIC_PREFIX` = `walkie/v2`
 - `MQTT_USERNAME` = optional username when Mosquitto auth is enabled

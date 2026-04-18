@@ -70,6 +70,7 @@ class MqttVoiceClient:
         self._queue: asyncio.Queue[MqttVoiceMessage] = asyncio.Queue()
         self._connected = asyncio.Event()
         self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self._client.reconnect_delay_set(min_delay=1, max_delay=30)
         if self._username:
             self._client.username_pw_set(self._username, self._password)
         self._client.on_connect = self._on_connect
@@ -84,8 +85,9 @@ class MqttVoiceClient:
     def subscribe_topic(self) -> str:
         return f"{self._topic_prefix}/audio/+"
 
-    async def start(self, timeout_s: float = 10.0) -> None:
+    async def start(self, timeout_s: float = 10.0) -> bool:
         self._loop = asyncio.get_running_loop()
+        self._connected.clear()
         LOGGER.info(
             "Connecting to MQTT broker %s:%s with publish=%s subscribe=%s username=%s",
             self._broker_host,
@@ -99,14 +101,21 @@ class MqttVoiceClient:
         try:
             await asyncio.wait_for(self._connected.wait(), timeout=timeout_s)
         except TimeoutError as exc:
-            self.close()
-            raise RuntimeError("Timed out connecting to MQTT broker") from exc
+            LOGGER.warning(
+                "Timed out connecting to MQTT broker within %s seconds; continuing in degraded mode and waiting for background reconnect",
+                timeout_s,
+            )
+            LOGGER.debug("Initial MQTT connect timeout details", exc_info=exc)
+            return False
+        return True
 
     async def publish_file(self, file_path: Path, qos: int = 1) -> None:
         payload = file_path.read_bytes()
         await self.publish_bytes(payload=payload, qos=qos)
 
     async def publish_bytes(self, payload: bytes, qos: int = 1) -> None:
+        if not self._connected.is_set():
+            raise RuntimeError("MQTT broker is not connected")
         result = self._client.publish(self.publish_topic, payload=payload, qos=qos)
         await asyncio.to_thread(result.wait_for_publish)
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
@@ -146,6 +155,8 @@ class MqttVoiceClient:
         reason_code: mqtt.ReasonCode,
         _properties: mqtt.Properties | None = None,
     ) -> None:
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(self._connected.clear)
         LOGGER.info("MQTT disconnected: %s", reason_code)
 
     def _on_message(
