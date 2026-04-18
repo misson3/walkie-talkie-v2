@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import signal
 import subprocess
 import threading
 from pathlib import Path
@@ -14,6 +16,7 @@ class AudioManager:
         self.audio_device = audio_device
         self._lock = threading.Lock()
         self._record_process: subprocess.Popen[bytes] | None = None
+        self._record_output_file: Path | None = None
         self._play_process: subprocess.Popen[bytes] | None = None
 
     def start_recording(self, output_file: Path) -> bool:
@@ -45,9 +48,11 @@ class AudioManager:
             ]
             try:
                 self._record_process = subprocess.Popen(command)
+                self._record_output_file = output_file
             except OSError:
                 LOGGER.exception("Failed to start recording process")
                 self._record_process = None
+                self._record_output_file = None
                 return False
             return True
 
@@ -55,18 +60,48 @@ class AudioManager:
         with self._lock:
             process = self._record_process
             self._record_process = None
+            output_file = self._record_output_file
+            self._record_output_file = None
 
         if process is None:
             return False
 
-        process.terminate()
+        if os.name == "nt":
+            process.terminate()
+        else:
+            process.send_signal(signal.SIGINT)
         try:
             process.wait(timeout=timeout_s)
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=timeout_s)
 
-        return process.returncode == 0
+        output_ready = (
+            output_file is not None
+            and output_file.exists()
+            and output_file.stat().st_size > 0
+        )
+        signal_stopped = process.returncode in {
+            0,
+            255,
+            -getattr(signal, "SIGINT", 2),
+            -getattr(signal, "SIGTERM", 15),
+        }
+
+        if signal_stopped and output_ready:
+            LOGGER.info(
+                "Recording process stopped with code %s and produced %s bytes",
+                process.returncode,
+                output_file.stat().st_size if output_file is not None and output_file.exists() else 0,
+            )
+            return True
+
+        LOGGER.warning(
+            "Recording process stopped with code %s (output_ready=%s)",
+            process.returncode,
+            output_ready,
+        )
+        return False
 
     def play_notification_file(self, file_path: Path) -> bool:
         if not file_path.exists():
@@ -152,6 +187,7 @@ class AudioManager:
         if self._record_process is not None and self._record_process.poll() is not None:
             LOGGER.info("Previous recording process exited with code %s", self._record_process.returncode)
             self._record_process = None
+            self._record_output_file = None
 
         if self._play_process is not None and self._play_process.poll() is not None:
             LOGGER.info("Previous playback process exited with code %s", self._play_process.returncode)
