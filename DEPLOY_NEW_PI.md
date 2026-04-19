@@ -51,7 +51,7 @@ uv --version
 
 If your HAT driver steps are needed, complete those first and verify ALSA device exists. 
 
-👉see my installation-memo.md for the Respeaker Mic-2 installation.
+👉see `respeaker-2-mic-setup-memo.md` for the Respeaker Mic-2 installation.
 
 
 
