@@ -250,6 +250,58 @@ mosquitto_sub -h 127.0.0.1 -t walkie/v2/audio/# -v
 mosquitto_sub -h <PI_A_TAILSCALE_IP> -t walkie/v2/audio/# -v
 ```
 
+If Mosquitto sometimes fails only during Raspberry Pi boot but starts successfully after a manual restart, add a systemd override so Mosquitto waits for Pi A's Tailscale IP before binding the Tailscale listener.
+
+Create the wait script on Pi A:
+
+```bash
+sudo tee /usr/local/bin/wait-for-tailscale-ip.sh > /dev/null <<'EOF'
+#!/bin/sh
+set -eu
+
+TARGET_IP="<PI_A_TAILSCALE_IP>"
+
+for _ in $(seq 1 30); do
+   if ip addr show tailscale0 2>/dev/null | grep -q "$TARGET_IP"; then
+      exit 0
+   fi
+   sleep 2
+done
+
+echo "tailscale IP $TARGET_IP did not appear in time" >&2
+exit 1
+EOF
+sudo chmod +x /usr/local/bin/wait-for-tailscale-ip.sh
+```
+
+Then create the Mosquitto override:
+
+```bash
+sudo mkdir -p /etc/systemd/system/mosquitto.service.d
+sudo tee /etc/systemd/system/mosquitto.service.d/override.conf > /dev/null <<'EOF'
+[Unit]
+Wants=network-online.target tailscaled.service
+After=network-online.target tailscaled.service
+StartLimitIntervalSec=0
+
+[Service]
+Restart=on-failure
+RestartSec=10
+ExecStartPre=/usr/local/bin/wait-for-tailscale-ip.sh
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart mosquitto
+```
+
+Verify the override is loaded:
+
+```bash
+sudo systemctl cat mosquitto
+sudo systemctl show mosquitto -p DropInPaths -p RestartUSec
+```
+
+Note: `StartLimitIntervalSec` must be placed under `[Unit]`, not `[Service]`, or systemd will ignore it.
+
 Longer-term hardening after end-to-end validation:
 
 1. Keep the listener bound to the Tailscale IP.
