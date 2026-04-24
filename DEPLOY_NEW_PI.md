@@ -46,7 +46,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 🐔# after the reboot, check
 which uv
 uv --version
-# uv 0.11.6 (armv7-unknown-linux-gnueabihf) # on my z2w3
+# uv 0.11.6 (armv7-unknown-linux-gnueabihf)
 ```
 
 If your HAT driver steps are needed, complete those first and verify ALSA device exists. 

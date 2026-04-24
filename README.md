@@ -2,11 +2,116 @@
 
 Python service that turns two Raspberry Pi devices into a Telegram-based walkie-talkie.
 
+## Reproducible Setup (Git Clone -> Two Raspberry Pis)
+
+This project is intended to run as a two-node setup:
+
+- Pi A: runs the app and Mosquitto broker.
+- Pi B: runs the app and connects to Pi A's broker over Tailscale.
+
+For full detailed deployment notes, see `DEPLOY_NEW_PI.md`.
+
+### 1. On both Pi nodes, install base packages and uv
+
+```bash
+sudo apt update
+sudo apt install -y ffmpeg python3-rpi.gpio python3-dev git curl
+curl -LsSf https://astral.sh/uv/install.sh | sh
+reboot
+```
+
+After reboot:
+
+```bash
+which uv
+uv --version
+```
+
+### 2. Clone this repository
+
+```bash
+cd /home/pison
+git clone <YOUR_REPO_URL> walkie-talkie-v2
+cd walkie-talkie-v2
+```
+
+### 3. Create project venv from lock file
+
+```bash
+uv python install
+uv sync --frozen
+```
+
+If `--frozen` fails due to local Python differences, run:
+
+```bash
+uv sync
+```
+
+### 4. Create per-node env file
+
+```bash
+sudo install -d -m 700 /etc/walkie-talkie
+sudo cp /home/pison/walkie-talkie-v2/walkie-talkie.env.template /etc/walkie-talkie/walkie-talkie.env
+sudo nano /etc/walkie-talkie/walkie-talkie.env
+sudo chmod 600 /etc/walkie-talkie/walkie-talkie.env
+sudo chown root:root /etc/walkie-talkie/walkie-talkie.env
+```
+
+Set node-specific values:
+
+- Pi A: `NODE_ID=pi_a`, `MQTT_ENABLED=true`, `MQTT_BROKER_HOST=127.0.0.1`
+- Pi B: `NODE_ID=pi_b`, `MQTT_ENABLED=true`, `MQTT_BROKER_HOST=<PI_A_TAILSCALE_IP>`
+- Both: set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_OWN_BOT_USERNAME`, and `TELEGRAM_IGNORE_BOT_USERNAMES`
+
+### 5. Set up Tailscale on both nodes
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+tailscale ip -4
+```
+
+### 6. On Pi A, set up Mosquitto broker
+
+```bash
+sudo apt update
+sudo apt install -y mosquitto mosquitto-clients
+sudo tee /etc/mosquitto/conf.d/walkie-v2.conf > /dev/null <<'EOF'
+per_listener_settings true
+listener 1883 127.0.0.1
+allow_anonymous true
+
+listener 1883 <PI_A_TAILSCALE_IP>
+allow_anonymous true
+EOF
+sudo systemctl enable mosquitto
+sudo systemctl restart mosquitto
+sudo systemctl status mosquitto
+```
+
+### 7. Install and start app service on both nodes
+
+```bash
+sudo cp /home/pison/walkie-talkie-v2/walkie-talkie.service /etc/systemd/system/walkie-talkie.service
+sudo systemctl daemon-reload
+sudo systemctl enable walkie-talkie
+sudo systemctl restart walkie-talkie
+sudo systemctl status walkie-talkie
+journalctl -u walkie-talkie -f
+```
+
+### 8. Verify end-to-end
+
+- Record on Pi A and confirm playback on Pi B.
+- Record on Pi B and confirm playback on Pi A.
+- Confirm bot-originated Telegram voice is ignored for playback.
+
 ## Behavior
 
 - Button A (GPIO 12): press once to start recording, press again to stop and send.
 - Recording automatically stops after 30 seconds (configurable).
-  - If max duration is reached automatically: a distinctive triple-beep alert is given.
+  - If max duration is reached: a distinctive beep alert is given.
 - Button B (GPIO 13): replay the latest received voice file.
 - Incoming peer-bot voice message is downloaded to a single fixed file.
 - Local outgoing recording is saved to a single fixed file.
@@ -43,98 +148,9 @@ Optional:
 
 - `ffmpeg`
 - `python3-rpi.gpio`
-- ReSpeaker 2-Mic Pi HAT driver and ALSA setup
+- ReSpeaker 2-Mic Pi HAT driver and ALSA setup (see `installation-memo.md`)
 
-Example install:
-
-```bash
-sudo apt update
-sudo apt install -y ffmpeg python3-rpi.gpio
-```
-
-## Python Install
-
-```bash
-pip install -e .
-```
-
-## Run
-
-```bash
-export TELEGRAM_BOT_TOKEN="<your_token>"
-export TELEGRAM_CHAT_ID="<your_group_chat_id>"
-python -m source.main
-```
-
-## Run as systemd Service (auto-start on boot)
-
-A ready-made unit file is included: `walkie-talkie.service`.
-
-### 1. Confirm the venv exists on the Pi
-
-```bash
-cd ~/walkie-talkie-v2
-uv sync           # creates .venv if not already present
-```
-
-### 2. Update the env file to add OWN_BOT_USERNAME
-
-```bash
-sudo nano /etc/walkie-talkie/walkie-talkie.env
-```
-
-Add (or verify) this line:
-
-```
-TELEGRAM_OWN_BOT_USERNAME=koe1_bot
-```
-
-You can safely remove the `TELEGRAM_PEER_BOT_USERNAME` line — it is no longer used.
-
-### 3. Install the unit file
-
-```bash
-sudo cp ~/walkie-talkie-v2/walkie-talkie.service /etc/systemd/system/
-sudo systemctl daemon-reload
-```
-
-### 4. Enable and start the service
-
-```bash
-sudo systemctl enable walkie-talkie    # auto-start on every boot
-sudo systemctl start walkie-talkie     # start right now without rebooting
-```
-
-### 5. Check it is running
-
-```bash
-sudo systemctl status walkie-talkie
-```
-
-### 6. Follow live logs
-
-```bash
-journalctl -u walkie-talkie -f
-```
-
-### Useful service management commands
-
-| Command | Purpose |
-|---|---|
-| `sudo systemctl stop walkie-talkie` | Stop the service |
-| `sudo systemctl restart walkie-talkie` | Restart after a code update |
-| `sudo systemctl disable walkie-talkie` | Disable auto-start |
-
-### After a code update on the Pi
-
-```bash
-cd ~/walkie-talkie-v2
-git pull
-uv sync
-sudo systemctl restart walkie-talkie
-```
-
----
+Full provisioning/service setup steps are covered in `DEPLOY_NEW_PI.md`.
 
 ## Hardware Smoke Test
 

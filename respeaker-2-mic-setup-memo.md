@@ -39,7 +39,10 @@ uname -r
 
 ```bash
 # これPC側。
-# https://github.com/HinTak/seeed-voicecard/tree/v6.12#
+まず
+https://github.com/HinTak/seeed-voicecard
+にいき、上で調べたカーネルバージョンのブランチに切り替える。デフォルトでは最新のものになっている。今の場合は6.12。ブランチを切り替えるとURLにそれが見えるはず。
+# https://github.com/HinTak/seeed-voicecard/tree/v6.12
 change the branch to 6.12
 download zip
 -> seeed-voicecard-6.12.zip
@@ -132,5 +135,4 @@ sudo systemctl status seeed-voicecard.service
 https://github.com/respeaker/mic_hat
 
 にexample codeがある。ButtonはPIN 17, LEDはapa102.py(spidevが必要)にクラスが定義されている。
-
 
