@@ -5,6 +5,7 @@ import logging
 import time
 from enum import Enum
 from pathlib import Path
+from typing import cast
 
 from .audio_manager import AudioManager
 from .config import AppConfig, load_config
@@ -12,6 +13,7 @@ from .interfaces.button import ButtonManager
 from .interfaces.pixels import Pixels
 from .mqtt_handler import MqttVoiceClient, MqttVoiceMessage
 from .telegram_handler import TelegramClient
+from .whisper_transcriber import WhisperTranscriber
 
 
 logging.basicConfig(
@@ -41,6 +43,17 @@ class WalkieTalkieApp:
             ignore_bot_usernames=config.telegram_ignore_bot_usernames,
             destination_file=config.play_file_path,
         )
+        self._transcriber = (
+            WhisperTranscriber(
+                cli_path=config.whisper_cli_path,
+                model_path=config.whisper_model_path,
+                language=config.whisper_language,
+                threads=config.whisper_threads,
+                timeout_s=config.whisper_timeout_s,
+            )
+            if config.whisper_enabled
+            else None
+        )
         self._mqtt = (
             MqttVoiceClient(
                 node_id=config.node_id,
@@ -67,6 +80,7 @@ class WalkieTalkieApp:
         self._last_recording_state = False
         self._last_playing_state = False
         self._recording_start_time: float | None = None
+        self._transcription_task = cast(asyncio.Task[None] | None, None)
 
     def _log_startup_self_check(self) -> None:
         LOGGER.info("Startup self-check")
@@ -88,6 +102,15 @@ class WalkieTalkieApp:
         LOGGER.info("Play voice path: %s", self._config.play_file_path)
         LOGGER.info("Telegram chat id: %s", self._config.telegram_chat_id)
         LOGGER.info("Ignored bot usernames: %s", list(self._config.telegram_ignore_bot_usernames))
+        LOGGER.info(
+            "Whisper config: enabled=%s cli=%s model=%s language=%s threads=%s timeout_s=%s",
+            self._config.whisper_enabled,
+            self._config.whisper_cli_path,
+            self._config.whisper_model_path or "<unset>",
+            self._config.whisper_language,
+            self._config.whisper_threads,
+            self._config.whisper_timeout_s,
+        )
         LOGGER.info(
             "MQTT config: enabled=%s broker=%s:%s prefix=%s username=%s",
             self._config.mqtt_enabled,
@@ -255,6 +278,47 @@ class WalkieTalkieApp:
             LOGGER.info("Published %s to MQTT", voice_file)
         except Exception:
             LOGGER.exception("Failed to publish recorded voice to MQTT")
+
+        self._schedule_transcript(voice_file)
+
+    def _schedule_transcript(self, voice_file: Path) -> None:
+        if self._transcriber is None:
+            return
+
+        if self._transcription_task is not None and not self._transcription_task.done():
+            LOGGER.info("Skipping transcript because a previous transcription is still running")
+            return
+
+        try:
+            snapshot_file = self._transcriber.snapshot_input(voice_file)
+        except Exception:
+            LOGGER.exception("Failed to prepare snapshot for transcription")
+            return
+
+        self._transcription_task = asyncio.create_task(
+            self._transcribe_snapshot_and_send(snapshot_file)
+        )
+
+    async def _transcribe_snapshot_and_send(self, snapshot_file: Path) -> None:
+        current_task = asyncio.current_task()
+        try:
+            assert self._transcriber is not None
+            transcript = await asyncio.to_thread(
+                self._transcriber.transcribe_snapshot,
+                snapshot_file,
+            )
+            if not transcript:
+                LOGGER.info("Transcript was empty, skipping Telegram text send")
+                return
+
+            message = f"{self._config.transcript_prefix}\n{transcript}"
+            await self._telegram.send_message(message)
+            LOGGER.info("Sent transcript to Telegram")
+        except Exception:
+            LOGGER.exception("Failed to transcribe and send transcript")
+        finally:
+            if self._transcription_task is current_task:
+                self._transcription_task = None
 
     async def _save_incoming_audio(self, message: MqttVoiceMessage) -> None:
         self._config.play_file_path.parent.mkdir(parents=True, exist_ok=True)

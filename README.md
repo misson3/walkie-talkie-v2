@@ -116,6 +116,7 @@ journalctl -u walkie-talkie -f
 - Incoming peer-bot voice message is downloaded to a single fixed file.
 - Local outgoing recording is saved to a single fixed file.
 - Replay is ignored while recording is in progress.
+- Optional whisper.cpp transcription can send a text transcript to Telegram after the voice upload and MQTT publish complete.
 
 ## Files
 
@@ -141,6 +142,13 @@ Optional:
 - `MQTT_TOPIC_PREFIX` (default: `walkie/v2`)
 - `MQTT_USERNAME` (default: empty)
 - `MQTT_PASSWORD` (default: empty)
+- `TRANSCRIPT_PREFIX` (default: `[transcript]`)
+- `WHISPER_ENABLED` (default: `false`)
+- `WHISPER_CLI_PATH` (default: `/home/pison/whisper.cpp/build/bin/whisper-cli`)
+- `WHISPER_MODEL_PATH` (required when `WHISPER_ENABLED=true`)
+- `WHISPER_LANGUAGE` (default: `ja`)
+- `WHISPER_THREADS` (default: `2`)
+- `WHISPER_TIMEOUT_S` (default: `180`)
 - `GPIO_RECORD_ACTIVE_LOW` (default: `true`)
 - `GPIO_REPLAY_ACTIVE_LOW` (default: `true`)
 
@@ -150,7 +158,80 @@ Optional:
 - `python3-rpi.gpio`
 - ReSpeaker 2-Mic Pi HAT driver and ALSA setup (see `installation-memo.md`)
 
+
+
+### installing whisper.cpp on raspberry pi zero 2 w, OS=Trixie
+
+**NOTE**: This is for raspberry pi zero 2 W with Trixie.
+
+If you enable whisper.cpp transcripts, install whisper.cpp separately from the Python environment and point the env file at the built `whisper-cli` binary and model file.
+
+Example setup on Raspberry Pi:
+
+```bash
+sudo apt update
+sudo apt install -y ffmpeg cmake build-essential git
+```
+
+#### Step 1: Create a Manual Temporary Swap File
+
+I got out of memory error in whisper.cpp compilation.  This is a solution from Gemini and it worked for me.
+
+This is to create a 2GB swap file without needing a specific service.
+
+```bash
+# 1. Create a 2GB file (this may take a minute)
+sudo dd if=/dev/zero of=/swapfile2G bs=1M count=2048
+
+# 2. Set the correct permissions
+sudo chmod 600 /swapfile2G
+
+# 3. Set up the swap area
+sudo mkswap /swapfile2G
+
+# 4. Enable the swap
+sudo swapon /swapfile2G
+```
+
+Verify it worked: Run `free -h`. You should see approximately 2.0Gi or more in the "Swap" row.
+
+#### Step 2: Build whisper.cpp
+
+**THIS IS FOR THE ZERO 2 W PROCESSOR**
+
+```bash
+cd ~/whisper.cpp
+# Clear any old failed build files
+rm -rf build
+# Configure with optimization for the Zero 2 W processor
+cmake -B build -DGGML_NEON=ON -DCMAKE_C_FLAGS="-mcpu=cortex-a53" -DCMAKE_CXX_FLAGS="-mcpu=cortex-a53"
+# Build using 1 thread
+cmake --build build -j 1 --config Release
+```
+
+#### Step 3: Cleanup (Post-Build)
+
+Once the build is successful, you should disable and remove the temporary swap file to save space on your SD card and reduce wear:
+
+```bash
+sudo swapoff /swapfile2G
+sudo rm /swapfile2G
+```
+
+#### Step 4: installing a model
+
+```bash
+cd ~/whisper.cpp
+$ ./models/download-ggml-model.sh tiny
+```
+
+
+
+The app transcribes a snapshot copy of `ogg/to-go-voice.ogg`, so voice delivery is not blocked by the fixed outgoing-file path being reused for later recordings.
+
 Full provisioning/service setup steps are covered in `DEPLOY_NEW_PI.md`.
+
+
 
 ## Hardware Smoke Test
 

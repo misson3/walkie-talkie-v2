@@ -46,6 +46,7 @@ def verify_config(project_root: Path) -> None:
             "TELEGRAM_CHAT_ID": "12345",
             "TELEGRAM_OWN_BOT_USERNAME": "@Koe1_Bot",
             "TELEGRAM_IGNORE_BOT_USERNAMES": " @koe2_bot , koe1_bot, @koe2_bot ",
+            "TRANSCRIPT_PREFIX": "[transcript pi_a]",
             "NODE_ID": "pi_a",
             "MQTT_ENABLED": "true",
             "MQTT_BROKER_HOST": "100.64.0.10",
@@ -53,6 +54,12 @@ def verify_config(project_root: Path) -> None:
             "MQTT_TOPIC_PREFIX": "/walkie/v2/",
             "MQTT_USERNAME": "walkie",
             "MQTT_PASSWORD": "secret-pass",
+            "WHISPER_ENABLED": "true",
+            "WHISPER_CLI_PATH": "/home/pison/whisper.cpp/build/bin/whisper-cli",
+            "WHISPER_MODEL_PATH": "/home/pison/whisper.cpp/models/ggml-tiny.bin",
+            "WHISPER_LANGUAGE": "ja",
+            "WHISPER_THREADS": "2",
+            "WHISPER_TIMEOUT_S": "180.5",
         }
     ):
         config = load_config(project_root=project_root)
@@ -60,12 +67,19 @@ def verify_config(project_root: Path) -> None:
     assert config.node_id == "pi_a"
     assert config.own_bot_username == "koe1_bot"
     assert config.telegram_ignore_bot_usernames == ("koe2_bot", "koe1_bot")
+    assert config.transcript_prefix == "[transcript pi_a]"
     assert config.mqtt_enabled is True
     assert config.mqtt_broker_host == "100.64.0.10"
     assert config.mqtt_broker_port == 1883
     assert config.mqtt_topic_prefix == "walkie/v2"
     assert config.mqtt_username == "walkie"
     assert config.mqtt_password == "secret-pass"
+    assert config.whisper_enabled is True
+    assert config.whisper_cli_path == Path("/home/pison/whisper.cpp/build/bin/whisper-cli")
+    assert config.whisper_model_path == Path("/home/pison/whisper.cpp/models/ggml-tiny.bin")
+    assert config.whisper_language == "ja"
+    assert config.whisper_threads == 2
+    assert config.whisper_timeout_s == 180.5
     assert config.send_file_path == project_root / "ogg" / "to-go-voice.ogg"
     assert config.play_file_path == project_root / "ogg" / "to-play-voice.ogg"
 
