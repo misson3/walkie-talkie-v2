@@ -11,6 +11,7 @@ from .config import AppConfig, load_config
 from .interfaces.button import ButtonManager
 from .interfaces.pixels import Pixels
 from .mqtt_handler import MqttVoiceClient, MqttVoiceMessage
+from .stt_handler import GoogleSpeechToTextClient
 from .telegram_handler import TelegramClient
 
 
@@ -53,6 +54,16 @@ class WalkieTalkieApp:
             if config.mqtt_enabled
             else None
         )
+        self._stt = (
+            GoogleSpeechToTextClient(
+                language_code=config.stt_language_code,
+                model=config.stt_model,
+                timeout_s=config.stt_timeout_s,
+                credentials_path=config.google_application_credentials,
+            )
+            if config.stt_enabled
+            else None
+        )
 
         self._button_manager = ButtonManager(
             record_pin=config.gpio_record_pin,
@@ -87,7 +98,10 @@ class WalkieTalkieApp:
         LOGGER.info("Send voice path: %s", self._config.send_file_path)
         LOGGER.info("Play voice path: %s", self._config.play_file_path)
         LOGGER.info("Telegram chat id: %s", self._config.telegram_chat_id)
-        LOGGER.info("Ignored bot usernames: %s", list(self._config.telegram_ignore_bot_usernames))
+        LOGGER.info(
+            "Ignored bot usernames: %s",
+            list(self._config.telegram_ignore_bot_usernames),
+        )
         LOGGER.info(
             "MQTT config: enabled=%s broker=%s:%s prefix=%s username=%s",
             self._config.mqtt_enabled,
@@ -95,6 +109,13 @@ class WalkieTalkieApp:
             self._config.mqtt_broker_port,
             self._config.mqtt_topic_prefix,
             self._config.mqtt_username or "<none>",
+        )
+        LOGGER.info(
+            "STT config: enabled=%s language=%s model=%s creds=%s",
+            self._config.stt_enabled,
+            self._config.stt_language_code,
+            self._config.stt_model or "<default>",
+            "set" if self._config.google_application_credentials else "<env/default>",
         )
 
     def _emit_event(self, event: AppEvent) -> None:
@@ -110,7 +131,11 @@ class WalkieTalkieApp:
 
         poll_task = asyncio.create_task(self._telegram_poll_loop())
         watchdog_task = asyncio.create_task(self._playback_watchdog_loop())
-        mqtt_task = asyncio.create_task(self._mqtt_poll_loop()) if self._mqtt is not None else None
+        mqtt_task = (
+            asyncio.create_task(self._mqtt_poll_loop())
+            if self._mqtt is not None
+            else None
+        )
 
         try:
             while True:
@@ -136,7 +161,9 @@ class WalkieTalkieApp:
             if not stopped:
                 LOGGER.warning("Recording process exited with non-zero status")
             self._pixels.set_recording(False)
-            beeped = self._audio.play_notification_file(self._config.recording_stop_sound_path)
+            beeped = self._audio.play_notification_file(
+                self._config.recording_stop_sound_path
+            )
             if not beeped:
                 LOGGER.warning("Could not play recording stop sound")
             await self._broadcast_local_voice(self._config.send_file_path)
@@ -145,7 +172,9 @@ class WalkieTalkieApp:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
-            lambda: self._audio.play_notification_file(self._config.recording_start_sound_path),
+            lambda: self._audio.play_notification_file(
+                self._config.recording_start_sound_path
+            ),
         )
 
         started = self._audio.start_recording(self._config.send_file_path)
@@ -223,7 +252,9 @@ class WalkieTalkieApp:
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(
                     None,
-                    lambda: self._audio.play_notification_file(self._config.playback_end_sound_path),
+                    lambda: self._audio.play_notification_file(
+                        self._config.playback_end_sound_path
+                    ),
                 )
 
             self._last_recording_state = recording
@@ -250,11 +281,40 @@ class WalkieTalkieApp:
         if self._mqtt is None:
             return
 
+        published_to_mqtt = False
         try:
             await self._mqtt.publish_file(voice_file)
             LOGGER.info("Published %s to MQTT", voice_file)
+            published_to_mqtt = True
         except Exception:
             LOGGER.exception("Failed to publish recorded voice to MQTT")
+
+        if not published_to_mqtt or self._stt is None:
+            return
+
+        asyncio.create_task(self._run_post_publish_stt(voice_file))
+
+    async def _run_post_publish_stt(self, voice_file: Path) -> None:
+        assert self._stt is not None
+        LOGGER.info("Starting post-MQTT STT for %s", voice_file)
+        try:
+            transcript = await asyncio.to_thread(self._stt.transcribe_file, voice_file)
+        except Exception:
+            LOGGER.exception("Post-MQTT STT failed")
+            return
+
+        if transcript is None:
+            LOGGER.info("Post-MQTT STT completed with no transcript")
+            return
+
+        LOGGER.info(
+            "Post-MQTT STT transcript (fallback=%s confidence=%s): %s",
+            transcript.used_fallback,
+            f"{transcript.confidence:.3f}"
+            if transcript.confidence is not None
+            else "n/a",
+            transcript.text,
+        )
 
     async def _save_incoming_audio(self, message: MqttVoiceMessage) -> None:
         self._config.play_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -266,7 +326,10 @@ class WalkieTalkieApp:
         )
 
     async def _play_incoming_audio(self, source: str) -> None:
-        LOGGER.info("Incoming voice available from %s, playing doorbell then auto-playback", source)
+        LOGGER.info(
+            "Incoming voice available from %s, playing doorbell then auto-playback",
+            source,
+        )
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
@@ -278,7 +341,9 @@ class WalkieTalkieApp:
         if started:
             self._pixels.set_playing(True)
         else:
-            LOGGER.warning("Auto-playback skipped for %s (busy or file missing)", source)
+            LOGGER.warning(
+                "Auto-playback skipped for %s (busy or file missing)", source
+            )
 
 
 async def _main_async() -> None:

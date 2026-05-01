@@ -58,17 +58,33 @@ class ButtonManager:
 
         while not self._stop_event.is_set():
             record_state = GPIO.input(self._record_pin)
-            record_pressed = record_state == GPIO.LOW if self._record_active_low else record_state == GPIO.HIGH
+            record_pressed = (
+                record_state == GPIO.LOW
+                if self._record_active_low
+                else record_state == GPIO.HIGH
+            )
 
             replay_state = GPIO.input(self._replay_pin)
-            replay_pressed = replay_state == GPIO.LOW if self._replay_active_low else replay_state == GPIO.HIGH
+            replay_pressed = (
+                replay_state == GPIO.LOW
+                if self._replay_active_low
+                else replay_state == GPIO.HIGH
+            )
 
             now = time.monotonic()
-            if record_pressed and not prev_record and (now - self._last_record_pressed_at) >= self._debounce_s:
+            if (
+                record_pressed
+                and not prev_record
+                and (now - self._last_record_pressed_at) >= self._debounce_s
+            ):
                 self._last_record_pressed_at = now
                 self._on_record_pressed()
 
-            if replay_pressed and not prev_replay and (now - self._last_replay_pressed_at) >= self._debounce_s:
+            if (
+                replay_pressed
+                and not prev_replay
+                and (now - self._last_replay_pressed_at) >= self._debounce_s
+            ):
                 self._last_replay_pressed_at = now
                 self._on_replay_pressed()
 

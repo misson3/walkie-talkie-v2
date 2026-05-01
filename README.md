@@ -209,3 +209,27 @@ Expected result:
 - Button A (GPIO12) and Button B (GPIO13) default to pull-up wiring (active-low).
 - For active-high wiring, set `GPIO_RECORD_ACTIVE_LOW=false` and/or `GPIO_REPLAY_ACTIVE_LOW=false`.
 - Telegram polling uses retry with exponential backoff on transient API errors.
+
+## Optional: Google Speech-to-Text (Post-MQTT)
+
+This project can optionally run speech-to-text for the local outgoing file `ogg/to-go-voice.ogg`.
+
+- Trigger timing: runs only after a successful MQTT publish of a local recording.
+- Existing flow remains unchanged: Telegram send and MQTT publish happen first.
+- STT is best-effort: failures are logged and do not interrupt walkie-talkie behavior.
+
+Required env vars for STT:
+
+- `STT_ENABLED=true`
+- `STT_LANGUAGE_CODE=ja-JP` (or your target language)
+- `GOOGLE_APPLICATION_CREDENTIALS=/etc/walkie-talkie/gcp-service-account.json`
+
+Optional STT vars:
+
+- `STT_MODEL=` (empty means API default model selection)
+- `STT_TIMEOUT_S=15`
+
+Audio format handling:
+
+- Direct recognition uses OGG Opus (`OGG_OPUS`) from `ogg/to-go-voice.ogg`.
+- If direct request is rejected with `InvalidArgument`, app converts to FLAC via `ffmpeg` and retries once.
