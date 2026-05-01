@@ -31,7 +31,9 @@ def build_ignore_bot_usernames(
     return normalized_usernames
 
 
-def should_ignore_telegram_sender(sender_username: str, ignore_bot_usernames: set[str]) -> bool:
+def should_ignore_telegram_sender(
+    sender_username: str, ignore_bot_usernames: set[str]
+) -> bool:
     normalized_sender = normalize_telegram_username(sender_username)
     return bool(normalized_sender) and normalized_sender in ignore_bot_usernames
 
@@ -65,9 +67,15 @@ class TelegramClient:
                 bot_username,
                 self._own_username,
             )
-            LOGGER.info("Telegram ignored bot usernames: %s", sorted(self._ignore_bot_usernames))
+            LOGGER.info(
+                "Telegram ignored bot usernames: %s", sorted(self._ignore_bot_usernames)
+            )
 
-            if self._own_username and bot_username and self._own_username != bot_username:
+            if (
+                self._own_username
+                and bot_username
+                and self._own_username != bot_username
+            ):
                 LOGGER.warning(
                     "Configured TELEGRAM_OWN_BOT_USERNAME (@%s) does not match token bot (@%s)",
                     self._own_username,
@@ -99,7 +107,9 @@ class TelegramClient:
 
             try:
                 member = await self._bot.get_chat_member(self._chat_id, me.id)
-                LOGGER.info("Bot membership in configured chat: status=%s", member.status)
+                LOGGER.info(
+                    "Bot membership in configured chat: status=%s", member.status
+                )
                 if str(member.status).lower() == "restricted":
                     LOGGER.warning(
                         "Bot is restricted in this chat. Receiving updates may be limited by chat permissions."
@@ -150,7 +160,9 @@ class TelegramClient:
             )
 
             if message.voice is None:
-                LOGGER.debug("Update %s: not a voice message, skipping", update.update_id)
+                LOGGER.debug(
+                    "Update %s: not a voice message, skipping", update.update_id
+                )
                 continue
 
             if message.chat_id != self._chat_id:
@@ -163,7 +175,11 @@ class TelegramClient:
                 continue
 
             if should_ignore_telegram_sender(sender, self._ignore_bot_usernames):
-                LOGGER.debug("Update %s: ignored bot sender @%s, skipping", update.update_id, sender)
+                LOGGER.debug(
+                    "Update %s: ignored bot sender @%s, skipping",
+                    update.update_id,
+                    sender,
+                )
                 continue
 
             LOGGER.info(
@@ -201,7 +217,9 @@ class TelegramClient:
             try:
                 return await self.poll_and_download_peer_voice(timeout_s=timeout_s)
             except TelegramError:
-                LOGGER.exception("Telegram poll attempt %s/%s failed", attempt, max_attempts)
+                LOGGER.exception(
+                    "Telegram poll attempt %s/%s failed", attempt, max_attempts
+                )
                 if attempt >= max_attempts:
                     return False
                 await asyncio.sleep(backoff)

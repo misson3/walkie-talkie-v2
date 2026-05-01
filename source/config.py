@@ -87,7 +87,9 @@ def load_config(project_root: Path | None = None) -> AppConfig:
     mqtt_enabled = _env_bool("MQTT_ENABLED", False)
     mqtt_broker_host = os.getenv("MQTT_BROKER_HOST", "").strip()
     mqtt_broker_port = _env_int("MQTT_BROKER_PORT", 1883)
-    mqtt_topic_prefix = os.getenv("MQTT_TOPIC_PREFIX", "walkie/v2").strip().strip("/") or "walkie/v2"
+    mqtt_topic_prefix = (
+        os.getenv("MQTT_TOPIC_PREFIX", "walkie/v2").strip().strip("/") or "walkie/v2"
+    )
     mqtt_username = os.getenv("MQTT_USERNAME", "").strip()
     mqtt_password = os.getenv("MQTT_PASSWORD", "")
 

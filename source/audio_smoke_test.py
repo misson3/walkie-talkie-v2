@@ -82,7 +82,9 @@ async def record_and_verify(duration_s: float = 5.0) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Audio record/format smoke test")
-    parser.add_argument("--seconds", type=float, default=5.0, help="Record duration in seconds")
+    parser.add_argument(
+        "--seconds", type=float, default=5.0, help="Record duration in seconds"
+    )
     args = parser.parse_args()
     asyncio.run(record_and_verify(duration_s=args.seconds))
 

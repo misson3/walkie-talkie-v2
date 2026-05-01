@@ -92,7 +92,9 @@ class AudioManager:
             LOGGER.info(
                 "Recording process stopped with code %s and produced %s bytes",
                 process.returncode,
-                output_file.stat().st_size if output_file is not None and output_file.exists() else 0,
+                output_file.stat().st_size
+                if output_file is not None and output_file.exists()
+                else 0,
             )
             return True
 
@@ -185,10 +187,16 @@ class AudioManager:
 
     def _clear_finished_processes_locked(self) -> None:
         if self._record_process is not None and self._record_process.poll() is not None:
-            LOGGER.info("Previous recording process exited with code %s", self._record_process.returncode)
+            LOGGER.info(
+                "Previous recording process exited with code %s",
+                self._record_process.returncode,
+            )
             self._record_process = None
             self._record_output_file = None
 
         if self._play_process is not None and self._play_process.poll() is not None:
-            LOGGER.info("Previous playback process exited with code %s", self._play_process.returncode)
+            LOGGER.info(
+                "Previous playback process exited with code %s",
+                self._play_process.returncode,
+            )
             self._play_process = None

@@ -71,7 +71,9 @@ def run(duration_s: float) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="GPIO/LED smoke test")
-    parser.add_argument("--seconds", type=float, default=20.0, help="Test duration in seconds")
+    parser.add_argument(
+        "--seconds", type=float, default=20.0, help="Test duration in seconds"
+    )
     args = parser.parse_args()
     run(duration_s=args.seconds)
 

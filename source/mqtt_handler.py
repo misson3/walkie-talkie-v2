@@ -13,7 +13,13 @@ import paho.mqtt.client as mqtt  # type: ignore[import-not-found,import-untyped]
 LOGGER = logging.getLogger(__name__)
 
 DisconnectCallback = Callable[
-    [mqtt.Client, object, mqtt.DisconnectFlags, mqtt.ReasonCode, mqtt.Properties | None],
+    [
+        mqtt.Client,
+        object,
+        mqtt.DisconnectFlags,
+        mqtt.ReasonCode,
+        mqtt.Properties | None,
+    ],
     None,
 ]
 
@@ -35,7 +41,9 @@ def extract_sender_id_from_topic(topic: str, topic_prefix: str) -> str | None:
     return sender_id or None
 
 
-def should_accept_mqtt_message(topic: str, topic_prefix: str, local_node_id: str) -> bool:
+def should_accept_mqtt_message(
+    topic: str, topic_prefix: str, local_node_id: str
+) -> bool:
     sender_id = extract_sender_id_from_topic(topic, topic_prefix)
     return sender_id is not None and sender_id != local_node_id
 
@@ -167,9 +175,13 @@ class MqttVoiceClient:
     ) -> None:
         sender_id = extract_sender_id_from_topic(message.topic, self._topic_prefix)
         if sender_id is None:
-            LOGGER.warning("Ignoring MQTT message on unexpected topic %s", message.topic)
+            LOGGER.warning(
+                "Ignoring MQTT message on unexpected topic %s", message.topic
+            )
             return
-        if not should_accept_mqtt_message(message.topic, self._topic_prefix, self._node_id):
+        if not should_accept_mqtt_message(
+            message.topic, self._topic_prefix, self._node_id
+        ):
             LOGGER.debug("Ignoring own MQTT message on %s", message.topic)
             return
 
