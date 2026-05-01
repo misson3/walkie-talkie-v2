@@ -2,6 +2,33 @@
 
 Python service that turns two Raspberry Pi devices into a Telegram-based walkie-talkie.
 
+## Python 3.13 -> 3.11 Migration (uv)
+
+The project now targets Python 3.11.
+
+- `pyproject.toml` uses `requires-python = ">=3.11,<3.12"`
+- `.python-version` is pinned to `3.11`
+- Raspberry Pi-only dependencies (`rpi-gpio`, `spidev`) are marked Linux-only so Windows development can run `uv sync` without build errors.
+
+### Recommended command flow
+
+```bash
+uv python install 3.11
+uv python pin 3.11
+uv lock
+uv sync --python 3.11
+uv run python -V
+```
+
+Expected version output:
+
+- `Python 3.11.x`
+
+### Cross-platform note
+
+- On Windows (development PC): Linux-only packages are skipped automatically.
+- On Raspberry Pi (Linux): `rpi-gpio` and `spidev` are installed automatically.
+
 ## Reproducible Setup (Git Clone -> Two Raspberry Pis)
 
 This project is intended to run as a two-node setup:
