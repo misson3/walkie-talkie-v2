@@ -26,6 +26,10 @@ class AppConfig:
     debounce_ms: int
     poll_interval_s: float
     max_recording_duration_s: float
+    stt_enabled: bool
+    stt_model_path: str
+    stt_message_prefix: str
+    stt_min_chars: int
     send_file_path: Path
     play_file_path: Path
     notification_sound_path: Path
@@ -100,6 +104,11 @@ def load_config(project_root: Path | None = None) -> AppConfig:
     poll_interval_s = 1.5
     max_recording_duration_s = 30.0
 
+    stt_enabled = _env_bool("STT_ENABLED", False)
+    stt_model_path = os.getenv("VOSK_MODEL_PATH", "").strip()
+    stt_message_prefix = os.getenv("STT_MESSAGE_PREFIX", "[STT]").strip() or "[STT]"
+    stt_min_chars = _env_int("STT_MIN_CHARS", 2)
+
     send_file = ogg_root / "to-go-voice.ogg"
     play_file = ogg_root / "to-play-voice.ogg"
     notification_sound = ogg_root / "doorbell_short_decay.ogg"
@@ -128,6 +137,10 @@ def load_config(project_root: Path | None = None) -> AppConfig:
         debounce_ms=debounce_ms,
         poll_interval_s=poll_interval_s,
         max_recording_duration_s=max_recording_duration_s,
+        stt_enabled=stt_enabled,
+        stt_model_path=stt_model_path,
+        stt_message_prefix=stt_message_prefix,
+        stt_min_chars=stt_min_chars,
         send_file_path=send_file,
         play_file_path=play_file,
         notification_sound_path=notification_sound,

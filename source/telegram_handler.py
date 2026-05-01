@@ -120,6 +120,12 @@ class TelegramClient:
                 filename=voice_file.name,
             )
 
+    async def send_text(self, text: str) -> None:
+        await self._bot.send_message(
+            chat_id=self._chat_id,
+            text=text,
+        )
+
     async def poll_and_download_peer_voice(self, timeout_s: int = 30) -> bool:
         updates = await self._bot.get_updates(
             offset=self._offset,

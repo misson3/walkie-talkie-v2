@@ -12,6 +12,7 @@ from .interfaces.button import ButtonManager
 from .interfaces.pixels import Pixels
 from .mqtt_handler import MqttVoiceClient, MqttVoiceMessage
 from .telegram_handler import TelegramClient
+from . import vosk_transcriber
 
 
 logging.basicConfig(
@@ -140,6 +141,7 @@ class WalkieTalkieApp:
             if not beeped:
                 LOGGER.warning("Could not play recording stop sound")
             await self._broadcast_local_voice(self._config.send_file_path)
+            await self._transcribe_and_post(self._config.send_file_path)
             return
 
         loop = asyncio.get_running_loop()
@@ -217,6 +219,7 @@ class WalkieTalkieApp:
                         ),
                     )
                     await self._broadcast_local_voice(self._config.send_file_path)
+                    await self._transcribe_and_post(self._config.send_file_path)
 
             if self._last_playing_state and not playing:
                 self._pixels.set_playing(False)
@@ -239,6 +242,42 @@ class WalkieTalkieApp:
         self._pixels.set_playing(False)
         self._pixels.set_app_running(False)
         self._button_manager.stop()
+
+    async def _transcribe_and_post(self, voice_file: Path) -> None:
+        if not self._config.stt_enabled:
+            return
+
+        import shutil
+        import tempfile
+
+        LOGGER.info("STT: starting transcription of %s", voice_file)
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                copy_path = Path(tmpdir) / voice_file.name
+                shutil.copy2(voice_file, copy_path)
+
+                loop = asyncio.get_running_loop()
+                text = await loop.run_in_executor(
+                    None,
+                    lambda: vosk_transcriber.transcribe(
+                        copy_path, self._config.stt_model_path
+                    ),
+                )
+
+            if text is None:
+                LOGGER.warning("STT: transcription returned None (model/conversion error)")
+                return
+
+            if len(text) < self._config.stt_min_chars:
+                LOGGER.info("STT: result too short (%r), skipping post", text)
+                return
+
+            message = f"{self._config.stt_message_prefix} {text}"
+            LOGGER.info("STT: posting to Telegram: %r", message)
+            await self._telegram.send_text(message)
+
+        except Exception:
+            LOGGER.exception("STT: unexpected error during transcription/post")
 
     async def _broadcast_local_voice(self, voice_file: Path) -> None:
         try:
