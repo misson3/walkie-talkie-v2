@@ -11,6 +11,11 @@ wheels/
 # Virtual environments
 .venv/
 
+# voice files
+ogg/to-go-voice.ogg
+ogg/to-play-voice.ogg
+
+
 
 # anything downloaded
 # e.g. zip file from https://github.com/HinTak/seeed-voicecard/tree/v6.12
