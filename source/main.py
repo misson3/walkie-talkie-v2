@@ -315,6 +315,11 @@ class WalkieTalkieApp:
             else "n/a",
             transcript.text,
         )
+        try:
+            await self._telegram.send_text(transcript.text)
+            LOGGER.info("Posted STT transcript to Telegram chat")
+        except Exception:
+            LOGGER.exception("Failed to post STT transcript to Telegram")
 
     async def _save_incoming_audio(self, message: MqttVoiceMessage) -> None:
         self._config.play_file_path.parent.mkdir(parents=True, exist_ok=True)
