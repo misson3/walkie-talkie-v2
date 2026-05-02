@@ -141,8 +141,21 @@ Optional:
 - `MQTT_TOPIC_PREFIX` (default: `walkie/v2`)
 - `MQTT_USERNAME` (default: empty)
 - `MQTT_PASSWORD` (default: empty)
+- `AUDIO_DEVICE` (default: `hw:1,0`)
+- `GPIO_RECORD_PIN` (default: `12`)
+- `GPIO_REPLAY_PIN` (default: `13`)
 - `GPIO_RECORD_ACTIVE_LOW` (default: `true`)
 - `GPIO_REPLAY_ACTIVE_LOW` (default: `true`)
+- `DEBOUNCE_MS` (default: `120`)
+- `POLL_INTERVAL_S` (default: `1.5`)
+- `MAX_RECORDING_DURATION_S` (default: `30.0`)
+- `SEND_FILE_NAME` (default: `to-go-voice.ogg`)
+- `PLAY_FILE_NAME` (default: `to-play-voice.ogg`)
+- `NOTIFICATION_SOUND_NAME` (default: `doorbell_short_decay.ogg`)
+- `RECORDING_START_SOUND_NAME` (default: `rec_start_A.ogg`)
+- `RECORDING_STOP_SOUND_NAME` (default: `rec_stop_A.ogg`)
+- `PLAYBACK_END_SOUND_NAME` (default: `rec_stop_C.ogg`)
+- `MAX_DURATION_ALERT_SOUND_NAME` (default: `max_dur_B.ogg`)
 
 ## System Dependencies (Raspberry Pi)
 
@@ -217,6 +230,12 @@ This project can optionally run speech-to-text for the local outgoing file `ogg/
 - Trigger timing: runs only after a successful MQTT publish of a local recording.
 - Existing flow remains unchanged: Telegram send and MQTT publish happen first.
 - STT is best-effort: failures are logged and do not interrupt walkie-talkie behavior.
+- On STT success, transcript text is posted to the configured Telegram chat.
+
+Important runtime condition:
+
+- STT path executes only when MQTT is enabled and publish succeeds.
+- If MQTT is disabled or publish fails, STT is skipped by design.
 
 Required env vars for STT:
 
@@ -233,3 +252,9 @@ Audio format handling:
 
 - Direct recognition uses OGG Opus (`OGG_OPUS`) from `ogg/to-go-voice.ogg`.
 - If direct request is rejected with `InvalidArgument`, app converts to FLAC via `ffmpeg` and retries once.
+
+Credentials file note (important on Raspberry Pi):
+
+- `walkie-talkie.service` runs as user `pison`.
+- The key file path in `GOOGLE_APPLICATION_CREDENTIALS` must be readable by `pison`.
+- If key is stored under `/etc/walkie-talkie`, make directory/file permissions compatible with that user.

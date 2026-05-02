@@ -38,15 +38,8 @@ Use one of these methods:
 sudo apt update
 sudo apt install -y ffmpeg python3-rpi.gpio python3-dev git curl
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-🐔# the script add the path setting in ~/.profile
-🐔# just reboot to take the setting in effect
-#export PATH="$HOME/.local/bin:$PATH"
-
-🐔# after the reboot, check
 which uv
 uv --version
-# uv 0.11.6 (armv7-unknown-linux-gnueabihf)
 ```
 
 If your HAT driver steps are needed, complete those first and verify ALSA device exists. 
@@ -110,6 +103,11 @@ Set values:
 - `MQTT_TOPIC_PREFIX` = `walkie/v2`
 - `MQTT_USERNAME` = optional username when Mosquitto auth is enabled
 - `MQTT_PASSWORD` = optional password when Mosquitto auth is enabled
+- `STT_ENABLED` = `true` to enable post-MQTT speech-to-text
+- `STT_LANGUAGE_CODE` = e.g. `ja-JP`
+- `STT_MODEL` = optional, leave empty for API default
+- `STT_TIMEOUT_S` = optional, default `15`
+- `GOOGLE_APPLICATION_CREDENTIALS` = path to GCP service account JSON
 
 Recommended validated split:
 
@@ -121,6 +119,21 @@ Then lock permissions:
 ```bash
 sudo chmod 600 /etc/walkie-talkie/walkie-talkie.env
 sudo chown root:root /etc/walkie-talkie/walkie-talkie.env
+```
+
+If STT is enabled, place the Google service-account key and ensure the app user can read it.
+The service runs as `pison`.
+
+```bash
+sudo install -m 640 -o root -g pison /path/to/gcp-service-account.json /etc/walkie-talkie/gcp-service-account.json
+sudo chgrp pison /etc/walkie-talkie
+sudo chmod 750 /etc/walkie-talkie
+```
+
+Set this path in `/etc/walkie-talkie/walkie-talkie.env`:
+
+```env
+GOOGLE_APPLICATION_CREDENTIALS=/etc/walkie-talkie/gcp-service-account.json
 ```
 
 ## 7. Set up Tailscale on Pi A and Pi B
@@ -369,6 +382,7 @@ journalctl -u walkie-talkie -f
 7. Pi B local record reaches Pi A over MQTT and plays once.
 8. Human Telegram voice reaches both Pi nodes and plays once.
 9. Bot-originated Telegram voices are ignored for playback.
+10. If STT is enabled and MQTT publish succeeds, transcript is posted to Telegram chat.
 
 ## 12. Update workflow on Pi
 
