@@ -48,6 +48,30 @@ If `--frozen` fails due to local Python differences, run:
 uv sync
 ```
 
+#### if following error occurs with the `uv sync`
+
+```bash
+error: command '/usr/bin/cc' failed with exit code 1
+
+      hint: This error likely indicates that you need to install a library that provides
+      "ffi.h" for `cffi@2.0.0`
+  help: `cffi` (v2.0.0) was included because `tg-w-t-mar29-2026` (v0.1.0) depends on
+        `google-cloud-speech` (v2.38.0) which depends on `google-auth` (v2.50.0) which depends
+        on `cryptography` (v47.0.0) which depends on `cffi`
+```
+
+Try followings
+
+```bash
+sudo apt update
+sudo apt install -y libffi-dev libssl-dev python3-dev build-essential pkg-config
+
+# then,
+uv sync
+```
+
+
+
 ### 4. Create per-node env file
 
 ```bash
@@ -258,3 +282,9 @@ Credentials file note (important on Raspberry Pi):
 - `walkie-talkie.service` runs as user `pison`.
 - The key file path in `GOOGLE_APPLICATION_CREDENTIALS` must be readable by `pison`.
 - If key is stored under `/etc/walkie-talkie`, make directory/file permissions compatible with that user.
+
+## file permissions
+
+- the .env file must be readable by system (root).  Systemd reads EnvironmenFile as root before starting the process.
+- the .json file must be readable by the service runtime user.  
+

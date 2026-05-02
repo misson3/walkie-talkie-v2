@@ -8,7 +8,6 @@ Type=simple
 User=pison
 
 # Absolute path to the project directory on the Pi
-#WorkingDirectory=/home/pison/tg-w-t-Mar29-2026  # z2w2 koeichi
 WorkingDirectory=/home/pison/walkie-talkie-v2
 
 # Use the virtual-env Python created by uv (avoids needing uv in systemd PATH)
